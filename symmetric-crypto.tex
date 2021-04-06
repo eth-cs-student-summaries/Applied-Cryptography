@@ -35,16 +35,17 @@ Exhaustive key search on $(P,C)$ pairs -- no attack should be better, else we th
 \begin{figure}[h]
     \centering
 	\includegraphics[scale=0.4]{images/prp.png}
-    \caption{PRP game pictorially}
+    \caption{PRP game}
     \label{fig:prp}
 \end{figure}
 
 The advantage is defined as:
 $$
 \mathbf{Adv}^{PRP}_E (\A)
-= 2 \cdot \Big| \Pr[ \text{Game}\textbf{PRP}(\A, E) \Rightarrow \text{true} ] - \frac{1}{2} \Big|
+= 2 \cdot \Big| \Pr[ \text{Game }\textbf{PRP}(\A, E) \Rightarrow \text{true} ] - \frac{1}{2} \Big|
 $$
 where the probability is over the randomness of $b, K, \Pi, \A$.
+Note that $\Pr[ \text{Game }\textbf{PRP}(\A, E) \Rightarrow \text{true} ] = \Pr[b'=b]$.
 
 \paragraph{Constructing block ciphers}
 In general: keyed round function that is repeated many times.
@@ -54,8 +55,113 @@ In general: keyed round function that is repeated many times.
 \item Substitution-permutation network: confusion + diffusion, e.g. AES
 \end{itemize}
 
+\paragraph{Electronic Code Book (ECB) mode}
+Same plaintext always maps to the same ciphertext (deterministic).
+Thus serious leakage, don't use.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/ecb.png}
+    \caption{ECB mode}
+    \label{fig:ecb}
+\end{figure}
+
+\paragraph{Cipher Block Chaining (CBC) mode}
+Use u.a.r. IV/previous ciphertext block to randomise encryption.
+
+A bit flip in $C_i$ completely scrambles/randomises $P_i$ and flips the same bit in $P_{i+1}$.
+
+Caveats: non-random IV, padding oracle attack, ciphertext block collisions (after using the same key for $2^{n/2}$ blocks by the birthday bound).
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/cbc-enc.png}
+	\includegraphics[scale=0.4]{images/cbc-dec.png}
+    \caption{CBC mode (left: encipher, right: decipher)}
+    \label{fig:cbc}
+\end{figure}
+
+\paragraph{Counter (CTR) mode}
+Incrementing counter is encrypted with block cipher to produce a pseudo-random value to xor the plaintext block with.
+
+Effectively a stream cipher producing OTP keys.
+$E_K$ does not even need to be invertible.
+No padding needed, can just truncate the last block.
+A bit flip it $C_i$ flips the same bit in $P_i$.
+
+Caveats: counter must not repeat/wrap around (else xor of ciphertexts = xor of plaintexts).
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/ctr.png}
+    \caption{CTR mode}
+    \label{fig:ctr}
+\end{figure}
+
 
 \subsection{Symmetric Encryption}
+
+\paragraph{Symmetric Encryption Scheme}
+is a triple $ SE = (KGen, Enc, Dec) $.
+We have key space $\K = \setzeroone^k$, message space $\M = \setzeroone^*$\footnote{In reality we might have a maximum plaintext length.} and ciphertext space $\C = \setzeroone^*$.
+For correctness, we have $ Dec_K(Enc_K(m))=m $.
+
+\paragraph{IND-CPA Security}
+Informally:
+computational version of perfect security --
+an efficient adversary cannot compute anything useful from a ciphertext (e.g. hide every bit of the plaintext.
+Equivalent to \emph{semantic security}.
+
+Formally:
+For any efficient adversary $\A$, given the encryption of one of two equal-length messages of its choice,
+$\A$ is unable to distinguish which one of the two messages was encrypted.
+
+In the security game, $\A$ gets access to a \emph{Left-or-Right encryption oracle}.
+The advantage of $\A$ is:
+$$
+\adv^{IND-CPA}_{SE} (\A)
+= 2 \cdot \Big| \Pr[ \text{Game }\textbf{IND-CPA}(\A, SE) \Rightarrow \text{true} ] - \frac{1}{2} \Big|
+$$
+
+Notes:
+Deterministic schemes \textbf{cannot} be IND-CPA secure (why?).
+CBC and CTR mode (if used properly) can be proven to be IND-CPA secure (assuming that $Enc$ is a PRP-secure block cipher).
+
+Caveats:
+No integrity. Says nothing about messages of non-equal length. No chosen ciphertexts.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/ind-cpa.png}
+    \caption{IND-CPA game}
+    \label{fig:ind-cpa}
+\end{figure}
+
+\paragraph{Advantage Rewriting Lemma}
+Let $b$ be a uniformly random bit and $b'$ the output of some algorithm. Then:
+$$
+2 \Big| \Pr[b'=b] - \frac{1}{2} \Big| = \Big| \Pr[b'=1|b=1] - \Pr[b'=1|b=0] \Big|
+$$
+
+\paragraph{Difference Lemma}
+Let $Z, W_1, W_2$ be events. If
+$$
+(W_1 \wedge \neg Z) \text{ occurs if and only if } (W_2 \wedge \neg Z) \text{ occurs}
+$$
+then
+$$
+\Big| \Pr[W_2] - \Pr[W_1] \Big| \leq \Pr[Z]
+$$
+In practice: $Z$ is a bad event that rarely happens, $W_1, W_2$ are when $\A$ wins in security games $G_1, G_2$.
+Useful for \emph{game hopping} proofs.
+
+\paragraph{PRP-PRF Switching Lemma}
+Let $E$ be a block cipher.
+Then for any algorithm $\A$ making $q$ queries:
+$$
+\Big| \adv^{PRP}_{E} (\A) - \adv^{PRF}_{E} (\A) \Big| \leq \frac{q^2}{2^{n+1}}
+$$
+
 
 
 \subsection{Hash Functions}
