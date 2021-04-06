@@ -1,0 +1,55 @@
+\documentclass[paper=a4, parskip=half-]{scrartcl}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{amssymb} % more icons/symbols
+\usepackage{hyperref} % for hyper links
+\usepackage{graphicx}
+
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ left=20mm,
+ right=20mm,
+ top=20mm,
+ bottom=30mm,
+ }
+
+
+\title{Applied Cryptography}
+\author{\texttt{thgoebel@ethz.ch}}
+\date{ETH Zürich, FS 2021}
+
+% Custom commands
+\newcommand{\setzeroone}{\lbrace 0, 1 \rbrace} % => {0,1} (Notice the missing $$)
+\newcommand{\horizontaldivider}{\begin{center} \line(1,0){350} \end{center}}
+
+\begin{document}
+
+\begin{titlepage}
+\maketitle
+\vspace{5cm}
+\thispagestyle{empty}
+
+
+\begin{abstract}
+This documents is a \textbf{short} summary for the course \textit{Applied Cryptography} at ETH Zurich.
+It is intended as a document for quick lookup, e.g. during revision, and as such does not replace reading the slides or a proper book.
+
+We do not guarantee correctness or completeness, nor is this document endorsed by the lecturers.
+Feel free to point out any erratas.
+\end{abstract}
+
+\end{titlepage}
+
+\tableofcontents
+%\listoffigures
+%\listoftables
+\newpage
+
+\input{symmetric-crypto}
+\newpage
+
+
+\end{document}
