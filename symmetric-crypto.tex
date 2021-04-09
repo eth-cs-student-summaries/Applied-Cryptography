@@ -198,7 +198,7 @@ For TLS attacks, see Lucky 13 and POODLE.
 \begin{figure}[h]
     \centering
 	\includegraphics[scale=0.6]{images/cbc-padding-oracle-attack.png}
-    \caption{Padding Oracle Attack on CBC mode}
+    \caption{Padding oracle attack on CBC mode}
     \label{fig:cbc-padding-oracle-attack}
 \end{figure}
 
@@ -227,6 +227,118 @@ See also the BEAST attack on TLS.
 
 
 \subsection{Hash Functions}
+
+\paragraph{Cryptographic Hash Function}
+An efficiently computable function $H: \setzeroone^* \mapsto \setzeroone^n$ that maps arbitrary-length inputs to fixed-length outputs (``\emph{message digests}'').
+Not keyed!
+
+Applications: MACs, signatures, key derivation, commitments.
+
+\paragraph{Random oracle model}
+Model under which hash functions are assumed to produced outputs that are uniformly random distributed.
+I.e. a hash function could be modelled by a random oracle.
+Very strong assumption!
+
+\paragraph{Birthday paradox}
+When drawing elements at random from a set of size $s$ then after $\sqrt{s}$ trials we expect a collision with 39\% probability.
+We quickly get to 99\% with an additional constant factor.
+
+\paragraph{Security goals}
+Primary goals:
+\begin{itemize}
+	\item \emph{Pre-image resistance} (one-wayness):
+	Given $h$, it is infeasible to find an $m$ such that $H(m) = h$.
+	\item \emph{Second pre-image resistance}:
+	Given $m_1$, it is infeasible to find an $m_2$ such that $H(m_1) = H(m_2)$.
+	\item \emph{Collision resistance}:
+	It is infeasible to find any $m_1 \neq m_2$ such that $H(m_1) = H(m_2)$.
+\end{itemize}
+
+Secondary goals:
+\begin{itemize}
+	\item \emph{Near-collision resistance}:
+	It is infeasible to find any $m_1 \neq m_2$ such that $H(m_1) \approx H(m_2)$ (e.g. hashes agree on most bits).
+	\item \emph{Partial pre-image resistance 1}:
+	Given $H(m)$, it is infeasible to recover any partial information about $m$.
+	\item \emph{Partial pre-image resistance 2}:
+	Given a target string $t$ with $|t|=l$ it is infeasible to find an $m$ such $H(m)=t||x$ (faster than with $2^l$ brute-force hash evaluations).
+\end{itemize}
+
+CR adversary:\\
+Cannot quantify security over \underline{all} efficient $\A$ (collisions exist, $\A$ can hardcode one).
+Instead, define ``$(t, \varepsilon)$-CR adversaries'', running in time $t$ and with $\adv^{CR}_H(\A) = \varepsilon$.
+Build reductions from there.
+
+Relationships:
+\begin{itemize}
+\item Collision resistance $\implies$ second pre-image resistance
+\item Maybe: Collision resistance $\implies$ pre-image resistance -- depending on how you define pre-image resistance (sampling from the domain or from the range?)
+\end{itemize}
+
+Generic attacks (in the ROM):\\
+(Second) pre-image resistance: $2^n$ evaluations.\\
+Collision resistance: $2^{n/2}$ evaluations! (by the birthday paradox)\\
+$\implies$ e.g. SHA-1 with 160-bit outputs only achieves 80-bit security
+
+\paragraph{Merkle-Damgård iterated hashing}
+Constructs a hash function $H$ from a \emph{compression function} \mbox{$h: \setzeroone^k \times \setzeroone^n \mapsto \setzeroone^n$}.
+Used e.g. in MD5, SHA-1, SHA-2.
+
+Steps: pad message, split into k-bit chunks, repeatedly apply $h$ to the chunks and IV/chaining values (see \autoref{fig:merkle-damgard}).
+
+Padding scheme:
+$$ m' = pad(m) = m || 10^t || [len(m)]_k $$
+where $[len(m)]_k$ is the k-bit encoding of the message length\footnote{This limits the maximum length of a message that can be hashed to $2^k - 1$.}
+and $0 \leq t < k$ is minimal.
+
+Theorem: If $h$ is collision resistant, then so is $H$.%
+\footnote{Note that the choice of padding scheme matters for the proof!
+Also note that the two IVs must be the same for a \emph{full collision}.
+The much weaker form of two colliding messages for different IVs is called a \emph{freestart collision}.}
+
+Length extension attack:
+Given $H(m)$ (but not $m$!) once can compute a valid hash $y=H(pad(m)||m'')$.
+This is problematic e.g. when construction MACs or KDFs from a hash function.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/merkle-damgard.png}
+    \caption{Merkle-Damgård transform}
+    \label{fig:merkle-damgard}
+\end{figure}
+
+\paragraph{Constructing compression functions from block ciphers}
+E.g. Davies-Meyer, Matyas-Meyer-Oseas, Miyaguchi-Preneel constructions.
+Use message as the key (need fast rekeying!) and (some variation of) chaining value as ``plaintext'' input.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.35]{images/davies-meyer.png}
+    \caption{Davies-Meyer construction}
+    \label{fig:davies-meyer}
+\end{figure}
+
+\paragraph{Sponge construction}
+Different design approach.
+Centered around 2 phases: absorbing + squeezing.
+Key ideas: giant bit permutation $F$, not inputting/outputting entire state.
+Variable length output.
+
+E.g. used in SHA-3/Keccak: $\text{SHA-3}(m)=out_1||out_2||out_3||...$.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.35]{images/sponge-absorb.png}
+    \caption{Sponge construction: absorbing}
+    \label{fig:sponge-absorb}
+\end{figure}
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.35]{images/sponge-squeeze.png}
+    \caption{Sponge construction: squeezing}
+    \label{fig:sponge-squeeze}
+\end{figure}
+
 
 
 \subsection{Message Authentication Codes MACs}
