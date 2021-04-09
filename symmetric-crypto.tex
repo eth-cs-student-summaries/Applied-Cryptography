@@ -45,7 +45,12 @@ $$
 = 2 \cdot \Big| \Pr[ \text{Game }\textbf{PRP}(\A, E) \Rightarrow \text{true} ] - \frac{1}{2} \Big|
 $$
 where the probability is over the randomness of $b, K, \Pi, \A$.
-Note that $\Pr[ \text{Game }\textbf{PRP}(\A, E) \Rightarrow \text{true} ] = \Pr[b'=b]$.
+Note that:
+$$
+\Pr[ \text{Game }\textbf{PRP}(\A, E) \Rightarrow \text{true} ]
+= \Pr[b'=b]
+$$
+Also see the Advantage Rewriting Lemma (\ref{adv-rewr-lemm}).
 
 \paragraph{Constructing block ciphers}
 In general: keyed round function that is repeated many times.
@@ -99,6 +104,7 @@ Caveats: counter must not repeat/wrap around (else xor of ciphertexts = xor of p
 \end{figure}
 
 
+
 \subsection{Symmetric Encryption}
 
 \paragraph{Symmetric Encryption Scheme}
@@ -109,7 +115,7 @@ For correctness, we have $ Dec_K(Enc_K(m))=m $.
 \paragraph{IND-CPA Security}
 Informally:
 computational version of perfect security --
-an efficient adversary cannot compute anything useful from a ciphertext (e.g. hide every bit of the plaintext.
+an efficient adversary cannot compute anything useful from a ciphertext (e.g. hide every bit of the plaintext).
 Equivalent to \emph{semantic security}.
 
 Formally:
@@ -137,11 +143,13 @@ No integrity. Says nothing about messages of non-equal length. No chosen ciphert
     \label{fig:ind-cpa}
 \end{figure}
 
-\paragraph{Advantage Rewriting Lemma}
+\paragraph{Advantage Rewriting Lemma}\label{adv-rewr-lemm}
 Let $b$ be a uniformly random bit and $b'$ the output of some algorithm. Then:
-$$
-2 \Big| \Pr[b'=b] - \frac{1}{2} \Big| = \Big| \Pr[b'=1|b=1] - \Pr[b'=1|b=0] \Big|
-$$
+\begin{align*}
+2 \Big| \Pr[b'=b] - \frac{1}{2} \Big|
+&= \Big| \Pr[b'=1|b=1] - \Pr[b'=1|b=0] \Big| \\
+&= \Big| \Pr[b'=0|b=0] - \Pr[b'=0|b=1] \Big|
+\end{align*}
 
 \paragraph{Difference Lemma}
 Let $Z, W_1, W_2$ be events. If
@@ -161,6 +169,60 @@ Then for any algorithm $\A$ making $q$ queries:
 $$
 \Big| \adv^{PRP}_{E} (\A) - \adv^{PRF}_{E} (\A) \Big| \leq \frac{q^2}{2^{n+1}}
 $$
+
+
+
+\subsection{Attacks}
+
+\paragraph{Padding}
+Added before encryption to expand plaintext to a multiple of the block size, i.e. \\$pad(\cdot): \setzeroone^* \mapsto \{ \setzeroone^n \}^*$.
+Must be expanding (why?) and efficiently computable.
+May be either randomised or deterministic.
+\\
+E.g. TLS padding: appends $t+1$ bytes of value $t$.
+
+Problem: adversary can detect padding errors (explicit error messages, logs, timing differences).
+
+\paragraph{Padding Oracle}
+Given a ciphertext $C$, returns whether the padding of the decryption is valid or invalid.
+Leaks 1 bit of information.
+Kind of a chosen ciphertext attack, thus \underline{not} covered by IND-CPA security!
+Main problem: no ciphertext integrity.
+
+In practice:
+$\A$ needs 128 oracle queries on average to recover one plaintext byte.
+Repeat for all bytes and all blocks for full plaintext recovery.
+Additional practical details to consider.
+For TLS attacks, see Lucky 13 and POODLE.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.6]{images/cbc-padding-oracle-attack.png}
+    \caption{Padding Oracle Attack on CBC mode}
+    \label{fig:cbc-padding-oracle-attack}
+\end{figure}
+
+\paragraph{Predictable IVs}
+Random IVs are not just theoretically relevant for IND-CPA security of CBC mode.
+Consider the following steps (see \autoref{fig:cbc-predictable-iv}):
+\begin{enumerate}
+\item $\A$ queries LoR oracle with $(P_0, P_1)$
+\item Oracle responds with $C = C_0||C_1$ where $C_1 = E_K(P_b \xor C_0)$
+\item $\A$ predicts next $IV=C_0'$
+\item $\A$ queries $P_0 \xor C_0 \xor C_0'$
+\item $\implies b = 0 \iff P_b = P_0 \iff C_1 = C_1' \implies$ breaks IND-CPA security
+\end{enumerate}
+
+In practice: systems may use \emph{IV chaining} (use the last ciphertext as the next IV, in order to avoid having to sample new randomness).
+E.g.: SSLv3, TLS 1.0, SSH in CBC mode.
+See also the BEAST attack on TLS.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.6]{images/cbc-predictable-iv.png}
+    \caption{Attack on predictable IVs in CBC mode}
+    \label{fig:cbc-predictable-iv}
+\end{figure}
 
 
 
