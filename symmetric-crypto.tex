@@ -445,6 +445,7 @@ HMAC is gradually supplanted by faster designs based on universal hashing (see b
 A number used once.
 Does neither need to be secret, nor does it need to be unpredictable.
 But must never ever repeat.
+Reasoning: it is easier to only use a number once than it is to get a good source of randomness.
 
 \paragraph{Nonce-based MAC NMAC}
 Like normal MAC, but $Tag$ and $Vfy$ now also take a nonce $N \in \mathcal{N}$.
@@ -533,6 +534,103 @@ In practice: e.g. GMAC (used in AES-GCM) instantiates $F$ with AES and $H$ with 
 
 
 
-
 \subsection{Authenticated Encryption}
+
+\paragraph{Integrity of ciphertexts INT-CTXT}
+Informally: adversary cannot forge new ciphertexts.
+
+Security game:
+$\A$ can submit any $m$ to an encryption oracle to obtain $c=Enc_K(m)$.
+At the end $\A$ submits one $c^*$ to a $try$ oracle.
+
+$\A$ wins if 1) $c^*$ is distinct from all previously seen $c$ and 2) $c^*$ decrypts to a $m^* \neq \bot$.
+
+$\A$ has advantage $\adv^{INT-CTXT}_{SE}(\A)$.
+
+\paragraph{Integrity of plaintexts INT-PTXT}
+Informally: adversary cannot force a new plaintext to be accepted by the receiver.
+
+Same as INT-CTXT but with an additional winning requirement: \\
+$\A$ wins if \dots\ 3) $m^*$ is distinct from all previous queries $m$.
+
+INT-CTXT $\implies$ INT-PTXT\footnote{Since due to SE correctness a new plaintext implies a new ciphertext.}
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.32]{images/int-ctxt-ptxt.png}
+    \caption{INT-CTXT + INT-PTXT game}
+    \label{fig:int-ctxt-ptxt}
+\end{figure}
+
+\paragraph{IND-CCA Security}
+(Indistinguishable under chosen ciphertext attack)
+
+Same as IND-CPA (LoR oracle), with an additional decryption oracle.%
+\footnote{Trivially, the adversary is not allowed to submit ciphertexts received from the LoR oracle to the decryption oracle.}
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/ind-cca.png}
+    \caption{IND-CCA game}
+    \label{fig:ind-cca}
+\end{figure}
+
+\paragraph{Authenticated Encryption AE}
+An SE is said to be \emph{AE secure} if it is IND-CPA secure and INT-CTXT secure.
+
+AE $\implies$ IND-CCA%
+\footnote{Informal proof by case distinction:
+Either at some point the IND-CCA adversary queries a $c$ that does not decrypt to $\bot$ (breaking INT-CTXT) or never, in which case the decryption oracle is useless (breaking IND-CPA).
+}
+
+\paragraph{Encrypt-and-MAC E\&M}
+Compute $c \leftarrow Enc_{KE}(m), \tau \leftarrow Tag_{KM}(m)$ and output $c'=c||\tau$.
+
+NOT secure in general:
+If MAC is deterministic (e.g. a PRF) then trivial IND-CPA attack applies.
+
+E.g. in SSH (in a stateful variant).
+
+\paragraph{Mac-then-Encrypt MtE}
+Compute $\tau \leftarrow Tag_{KM}(m)$ and output $c \leftarrow Enc_{KE}(m||\tau)$.
+
+Can be made secure under specific instantiations, but unsafe in general -- AVOID!
+
+E.g. in TLS prior to 1.3.
+
+\paragraph{Encrypt-then-Mac EtM}
+Compute $c \leftarrow Enc_{KE}(m), \tau \leftarrow Tag_{KM}(c)$ and output $c'=c||\tau$.
+
+AE secure under the assumption that SE is IND-CPA and MAC is \underline{S}UF-CMA.
+
+E.g. in IPSec ESP.
+
+\paragraph{AE with Associated Data AEAD}
+Informally: integrity-protect some data, provide confidentiality for the rest.
+E.g. AES-GCM, ChaCha20-Poly1305.
+
+Both $Enc$ and $Dec$ also take the associated data $AD$ as an additional argument
+-- but the ciphertext does not ``contain'' $AD$ (instead $AD$ is sent alongside, like the nonce $N$).
+
+IND-CPA game:
+adversary sends $(N, AD, (m_0, m_1))$ to LoR oracle.
+
+INT-CTXT game:
+adversary sends $(N, AD, m)$ to encryption oracle and $(N^*, AD^*, c^*)$ to the try oracle.
+
+In practice: if nonces implicitly use a counter, then the adversary cannot reorder or delete messages (and of course can't insert either due to INT-CTXT).
+
+EtM for AEAD:
+$$
+c \leftarrow Enc_{KE}(m), \tau \leftarrow Tag_{KM}(len(AD)||AD||c) ; \text{ output } c'=c||\tau
+$$
+Note that tagging over the length is required to avoid mis-parsing between $AD$ and $c$.
+$Enc$ and $Tag$ may be nonce-based, e.g. AES-GCM.
+
+\paragraph{AES-GCM (Galois Counter Mode)}
+EtM with AES in CTR mode and a CW-MAC ($H_{xpoly}$ over $GF(2^{128})$).
+Single key, MAC key is derived: $K_M = AES(K, 0^{128})$.
+Nonces are usually 96 bit and reuse results in catastrophic failure (MAC key recovery), thus not \emph{nonce-misuse resistant}.
+Counters for SE are of the form $N||ctr$.
+Almost as fast as CTR mode, since UHF in MAC is fast.
 
