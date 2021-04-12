@@ -130,7 +130,7 @@ $$
 $$
 
 Notes:
-Deterministic schemes \textbf{cannot} be IND-CPA secure (why?).
+Deterministic schemes \textbf{cannot} be IND-CPA secure (why?\footnote{The adversary can first query $(m_0, m_0)$ to learn $c_0$, then query $(m_0, m_1)$ and thus win with high probability.}).
 CBC and CTR mode (if used properly) can be proven to be IND-CPA secure (assuming that $Enc$ is a PRP-secure block cipher).
 
 Caveats:
@@ -342,6 +342,196 @@ E.g. used in SHA-3/Keccak: $\text{SHA-3}(m)=out_1||out_2||out_3||...$.
 
 
 \subsection{Message Authentication Codes MACs}
+
+\paragraph{Motivation}
+Provide \emph{integrity} and \emph{data origin authentication}, i.e. no attacker should be able to modify or forge messages (unforgeability).
+
+They do \underline{not} provide confidentiality or secure against message deletion, replay, reordering, or reflection (if the key is used in both directions).
+
+\paragraph{Definition (MAC scheme)}
+A MAC scheme with key length $k$ and tag length $t$ consists of three efficient algorithms:
+\begin{align*}
+KGen:& \quad \{\} \mapsto \setzeroone^k \\
+Tag:& \quad \setzeroone^k \times \setzeroone^* \mapsto \setzeroone^t \\
+Vfy:& \quad \setzeroone^k \times \setzeroone^* \times \setzeroone^t \mapsto \setzeroone
+\end{align*}
+For correctness\footnote{A functionality, not a security requirement.}, we require that
+$$
+\forall K, m \; . \; Vfy(K, M, \tau) = 1 \text{ where } \tau = Tag(K,m)
+$$
+$Vfy$ and $Tag$ may be randomised.
+Note that if they are deterministic \underline{and} $Vfy$ internally (re)computes $Tag(K, m) \overset{?}{=} \tau$, then the scheme has \emph{unique tags}.
+
+\paragraph{MAC Security}
+Informally: it is hard for an attacker to forge a valid message-tag pair $(m', \tau')$.
+
+Security game: $\A$ gets access to a tag oracle and a verify oracle.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.35]{images/mac.png}
+    \caption{MAC game}
+    \label{fig:mac}
+\end{figure}
+
+\paragraph{Weak unforgeability under chosen message attack (WUF-CMA)}
+$\A$ wins if it submitted some $(m^*, \tau^*)$ to the verify oracle such that $Vfy(m^*, \tau^*)=1$ and \underline{no} query $Tag(m^*)$ was made.
+
+\paragraph{Strong unforgeability under chosen message attack (SUF-CMA)}
+$\A$ wins if it submitted some $(m^*, \tau^*)$ to the verify oracle such that $Vfy(m^*, \tau^*)=1$ and \underline{no} query $Tag(m^*)$ \underline{with response} $\tau^*$ was made.
+
+Note that:
+\begin{itemize}
+\item A SUF-CMA adversary can \underline{also} win by coming up with a new tag for an old message.
+We make the adversary ``stronger'' by relaxing the winning condition.
+\item SUF-CMA $\implies$ WUF-CMA (somewhat counter-intuitively)
+\item For deterministic MAC schemes \underline{that build $Vfy$ from $Tag$}, the two are equal (why?%
+\footnote{When tags are unique then no adversary can come up with another tag for a previously queried message.
+However, consider the following deterministic scheme that is WUF-CMA but not SUF-CMA:
+$$ Tag'(K, m) = 0 || Tag(K, m) \quad Vfy'(K, m, b||\tau) = Vfy(K, m, \tau)$$
+}).
+\item More formally: $(q_t, q_v, t, \varepsilon)$-W/SUF-CMA security
+\end{itemize}
+
+Generic attacks:
+guess $(m, \tau)$ pairs, guess the key, few tag queries + exhaustive key search.
+
+\paragraph{MACs from PRFs}
+Construction of $MAC(F)$:
+Let $F: \setzeroone^k \times \setzeroone^n \mapsto \setzeroone^t$ be a PRF.
+\begin{align*}
+KGen():& \quad K \leftarrow \$ \; \setzeroone^k \\
+Tag(K, m):& \quad \tau \leftarrow F(K, m) \\
+Vfy(K, m, \tau):& \quad \tau' \leftarrow F(K, m); \text{ return } \tau' == \tau
+\end{align*}
+%
+Theorem:
+If $F$ is a PRF then $MAC(F)$ is a SUF-CMA.
+
+\paragraph{Domain extension with CR hashing}
+Motivation: build a MAC for a larger input domain $\mathcal{X}'$ from a MAC with fixed domain $\mathcal{X}$ (to handle more than just block-sized messages).
+
+Construction of $HtMAC$:
+Let $MAC=(KGen, Tag, Vfy)$ be a MAC and let $H: \mathcal{X}' \mapsto \mathcal{X}$ be a hash function.
+\begin{align*}
+Tag'(K, m):& \quad Tag(K, H(m)) \\
+Vfy'(K, m, \tau):& \quad Vfy(K, H(m), \tau)
+\end{align*}
+%
+Theorem:
+If $MAC$ is SUF-CMA secure and $H$ is collision resistant then $HtMAC$ is SUF-CMA.
+
+\paragraph{Hash-based MAC HMAC}
+Turn (the often fast) hash functions into a keyed primitive using a two-key nest to build a PRF (and thus a MAC):
+$$
+F_{nest}((K_1, K_2), m) = H(K_2 || H(K_1||m))
+$$
+Notes:
+Cannot simply prepend the key (length extension attacks).
+Also cannot simply append the key (offline collision attacks).
+In practice, derive two keys from one key using an inner and outer mask.
+Implementations often use an initialise-update-finalise interface (which can open \href{https://eprint.iacr.org/2015/1129}{timing attack vectors}).
+
+HMAC is gradually supplanted by faster designs based on universal hashing (see below), yet it is still used in key derivation scenarios (that use PRFness).
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.45]{images/hmac.png}
+    \caption{HMAC}
+    \label{fig:hmac}
+\end{figure}
+
+\paragraph{Nonce}
+A number used once.
+Does neither need to be secret, nor does it need to be unpredictable.
+But must never ever repeat.
+
+\paragraph{Nonce-based MAC NMAC}
+Like normal MAC, but $Tag$ and $Vfy$ now also take a nonce $N \in \mathcal{N}$.
+In the security game, we require that nonces are distinct (e.g. enforced by the tag oracle).
+
+\paragraph{Keyed hash function}
+A keyed hash function $H$ is a deterministic algorithm that takes a key and a message and produces a \emph{digest} $t=H(K, m)$ over the digest space $\mathcal{T}$.
+
+\paragraph{Universal hashing UHF}
+Informally: selecting a hash function at random from a family of hash functions (the universal family).
+
+Security game:
+Let $H$ be a \underline{keyed} hash function. Then:
+\begin{enumerate}
+\item Challenger sets $K \leftarrow \$ \; \setzeroone^k$
+\item Adversary outputs distinct $(m_0, m_1)$
+\end{enumerate}
+$\A$ wins if $H(K, m_0) = H(K, m_1)$ and has advantage $\adv^{UHF}_{H}(\A)$.
+
+$H$ is an $\varepsilon$-\emph{bounded universal hash function} if $\adv^{UHF}_{H}(\A) \leq \varepsilon$ for all $\A$ (even unbounded ones).
+
+Equivalent definition:
+$H$ is an $\varepsilon$-UHF if
+$ \forall m_0, m_1 \; . \; \Pr[H(K, m_0) = H(K, m_1)] \leq \varepsilon $,
+where the probability is over the random choice of $K$.
+
+\paragraph{Universal hash functions from polynomials}
+Let $\mathcal{F}$ be a finite field (e.g. integers mod p or $GF(2^n)$)
+and let $\mathcal{K} = \mathcal{T} = \mathcal{F}$ and $\mathcal{M} = \mathcal{F}^{\leq l}$.
+Then we define:
+$$
+H_{poly}(K, (a_1, \dots, a_v))
+= K^v + a_1 K^{v-1} + a_2 K^{v-2} + \dots + a_{v-1} K + a_v
+$$
+That is, $H_{poly}$ is always a degree $v$ polynomial (even if the message vector $a$ is zero).
+It can efficiently be evaluated using finite field operations and Horner's rule.
+
+Theorem:
+$H_{poly}$ is an $\varepsilon$-UHF for $\varepsilon = \frac{l}{|\mathcal{F}|}$.
+
+\paragraph{Difference unpredictable hashing DUHF}
+Security game:
+Let $H$ be a keyed hash function and let the digest space $\mathcal{T}$ have a group operation $+$ (with inverse $-$)%
+\footnote{E.g. addition mod $n$ in $\mathbb{Z}_n$ or XOR in $\setzeroone^n$.}.
+Then:
+\begin{enumerate}
+\item Challenger sets $K \leftarrow \$ \; \setzeroone^k$
+\item Adversary outputs distinct $m_0, m_1 \in \mathcal{M}$ and $\delta \in \mathcal{T}$.
+\end{enumerate}
+$\A$ wins if $H(K, m_0) - H(K, m_1) = \delta$ and has advantage $\adv^{DUHF}_{H}(\A)$.
+
+$H$ is an $\varepsilon$-\emph{bounded distance unpredictable hash function} ($\varepsilon$-DUHF) if $\adv^{DUHF}_{H}(\A) \leq \varepsilon$ for all $\A$ (even unbounded ones).
+
+\paragraph{XOR universal hashing}
+Special case of DUHF where we have XOR as the group operation.
+We define $H_{xpoly}$ as follows:
+\begin{align*}
+H_{xpoly}(K, (a_1, \dots, a_v))
+&= K^{v+1} + a_1 K^v + a_2 K^{v-1} + \dots + a_{v-1} K^2 + a_v K \\
+&= K \cdot H_{poly}(K, (a_1, \dots, a_v))
+\end{align*}
+
+Theorem:
+$H_{xpoly}$ is an $\varepsilon$-DUHF for $\varepsilon = \frac{l+1}{|\mathcal{F}|}$.
+
+\paragraph{Carter-Wegman MACs}
+Let $H$ be an $\varepsilon$-DUHF and let $F$ be a PRF.
+Then we define CW-MAC$(F, H)$ as follows:
+\begin{align*}
+KGen():& \quad (K_1, K_2) \leftarrow \$ \; \mathcal{K}_H \times \mathcal{K}_F \\
+Tag((K_1, K_2), N, m):& \quad \tau \leftarrow H(K_1, m) + F(K_2, N) \\
+Vfy((K_1, K_2), N, m, \tau):& \quad \tau' \leftarrow Tag((K_1, K_2), N, m); \text{ return } \tau' == \tau
+\end{align*}
+
+Theorem:
+If $H$ is an $\varepsilon$-DUHF and $F$ a PRF then CW-MAC$(F, H)$ is SUF-CMA secure.
+
+In practice: e.g. GMAC (used in AES-GCM) instantiates $F$ with AES and $H$ with $H_{xpoly}$ over $\mathcal{F} = GF(2^{128})$.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.45]{images/carter-wegman.png}
+    \caption{Carter-Wegman MAC tag algorithm}
+    \label{fig:carter-wegman}
+\end{figure}
+
+
 
 
 \subsection{Authenticated Encryption}
