@@ -609,8 +609,10 @@ E.g. in IPSec ESP.
 Informally: integrity-protect some data, provide confidentiality for the rest.
 E.g. AES-GCM, ChaCha20-Poly1305.
 
-Both $Enc$ and $Dec$ also take the associated data $AD$ as an additional argument
+Both $Enc$ and $Dec$ also take the associated data $AD$ as an additional input argument
 -- but the ciphertext does not ``contain'' $AD$ (instead $AD$ is sent alongside, like the nonce $N$).
+\\
+But: $AD$ is not an output of the AEAD scheme (only $c$ and $\tau$ are)!
 
 IND-CPA game:
 adversary sends $(N, AD, (m_0, m_1))$ to LoR oracle.
@@ -618,19 +620,20 @@ adversary sends $(N, AD, (m_0, m_1))$ to LoR oracle.
 INT-CTXT game:
 adversary sends $(N, AD, m)$ to encryption oracle and $(N^*, AD^*, c^*)$ to the try oracle.
 
-In practice: if nonces implicitly use a counter, then the adversary cannot reorder or delete messages (and of course can't insert either due to INT-CTXT).
-
 EtM for AEAD:
 $$
 c \leftarrow Enc_{KE}(m), \tau \leftarrow Tag_{KM}(len(AD)||AD||c) ; \text{ output } c'=c||\tau
 $$
 Note that tagging over the length is required to avoid mis-parsing between $AD$ and $c$.
-$Enc$ and $Tag$ may be nonce-based, e.g. AES-GCM.
+
+In practice:
+$Enc$ and $Tag$ may be nonce-based.
+If nonces implicitly use a counter, then the adversary cannot reorder or delete messages (and of course can't insert either due to INT-CTXT).
 
 \paragraph{AES-GCM (Galois Counter Mode)}
 EtM with AES in CTR mode and a CW-MAC ($H_{xpoly}$ over $GF(2^{128})$).
 Single key, MAC key is derived: $K_M = AES(K, 0^{128})$.
 Nonces are usually 96 bit and reuse results in catastrophic failure (MAC key recovery), thus not \emph{nonce-misuse resistant}.
-Counters for SE are of the form $N||ctr$.
+Counters \underline{for $Enc$} are of the form $N||ctr$.
 Almost as fast as CTR mode, since UHF in MAC is fast.
 
