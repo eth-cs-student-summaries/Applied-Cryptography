@@ -1,0 +1,118 @@
+
+\section{Advanced Cryptography}
+
+\subsection{Data at rest: Searchable Encryption}
+
+\paragraph{Searchable Encryption}
+consists of three protocols:
+\begin{enumerate}
+\item Setup:
+Client generates an \emph{encrypted database + encrypted search index}%
+\footnote{A search index is a mapping from document ids to keywords, and/or vice versa.
+For more details see the lecture \textit{Information Retrieval}.},
+uploads them to the server.
+\item Search:
+Client generates a \emph{search token}, server uses it to process the search, returns the result.
+\item Update:
+Client generates an \emph{update token}, server uses it to update the encrypted database and encrypted search index, returns success/failure.
+\end{enumerate}
+%
+Active field of research, many open problems (e.g. leakage analysis + prevention).
+
+\paragraph{Goals}
+\begin{itemize}
+\item Security:
+Confidentiality (of data and queries) against an \emph{honest-but-curious} server.%
+\footnote{Compare this security model against a fully malicious server.}
+\item Efficiency:
+Storage, computational, bandwidth requirements.
+\item Functionality:
+Supported query types.
+\end{itemize}
+
+\paragraph{First construction}
+Idea: randomly choose a PRF $F_K$ and replace each keyword $w$ in the index by $F_K(w)$.
+Also encrypt each document under some symmetric key $K_0$.
+
+Leakage from setup $\mathcal{L}_{Setup}$:
+total number of documents and keywords, keyword frequency, co-occurences of keywords.
+
+Leakage from searches $\mathcal{L}_{Search}$:
+result patterns, query patterns, result intersection between queries.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/searchable-encryption-1.png}
+    \caption{First construction for searchable encryption}
+    \label{fig:searchable-encryption-1}
+\end{figure}
+
+\paragraph{Second construction}
+Idea: randomly choose a PRF $F_K$.
+For each keyword $w$ calculate $K_1 || K_2 = F_K(w)$.
+Replace each keyword with $K_1$ (as before).
+In addition: associate each document id for $w$ with a counter $cnt$ and replace the id with $id \xor F_{K_2}(cnt)$.
+
+This hides the co-occurences of keyword pairs (PRF security).
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.35]{images/searchable-encryption-2.png}
+    \caption{Second construction for searchable encryption}
+    \label{fig:searchable-encryption-2}
+\end{figure}
+
+\paragraph{Third construction}
+Idea: ... (as before) ... \\
+In addition: associate each document id for $w$ with a counter $cnt$ and replace the id with $id \xor F_{K_2}(cnt)$.
+Then store this document id value in a key-value store (dictionary) under ``key'' $F_{K_1}(cnt)$.
+
+Search:
+Send $(K_1, K_2, |cnt_{querystring}|)$ to the server.
+Server recomputes the $F_{K_1}(cnt)$ to find the values in the dictionary.
+Then decrypts them to document ids using $K_2$.
+Looks up the encrypted documents and returns them.
+
+Leakage from setup $\mathcal{L}_{Setup}$:%
+\footnote{This is also what an adversary learns from a single snapshot.}
+total number of documents.
+
+Leakage from searches $\mathcal{L}_{Search}$:
+(same as before) result patterns, query patterns, result intersection between queries.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/searchable-encryption-3.png}
+    \caption{Third construction for searchable encryption (setup)}
+    \label{fig:searchable-encryption-3}
+\end{figure}
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/searchable-encryption-4.png}
+    \caption{Third construction for searchable encryption (search)}
+    \label{fig:searchable-encryption-4}
+\end{figure}
+
+\paragraph{Defining Leakage}
+Goal: formally define the leakage $\mathcal{L} = (\mathcal{L}_{Setup}, \mathcal{L}_{Search})$ of searchable encryption schemes.
+
+Security game: an adversary $\A$ interacts with a challenger $\C$ that contains either the real world or a simulator.
+The simulator $\mathcal{S}$ only has access to the leakage $\mathcal{L}$ (but not to the secret key).
+Intuitively, the adversary should gain no extra information other than the leakage.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/searchable-encryption-leakage.png}
+    \caption{Searchable encryption leakage game}
+    \label{fig:searchable-encryption-leakage}
+\end{figure}
+
+\paragraph{Analysing Leakage}
+What can the adversary infer from the leakage?
+It turns out that given auxiliary information, one can e.g. perform query recovery.
+
+\subsection{Data in transit: Protocols}
+
+
+\subsection{Data under computation: FHE}
+
