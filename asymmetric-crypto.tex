@@ -219,8 +219,119 @@ The RSA problem is at least as easy as the IFP, but it might be easier.
 (Finding $d$ is equivalent to factoring though.)
 
 
-\subsection{Diffie-Hellman Key Exchange}
+\subsection{Discrete Logarithm / Diffie-Hellman}
+
+\paragraph{Discrete Logarithm Setting}
+Let $p, q$ be large primes such that $q$ divides $p-1$, i.e. $p = kq + 1$.
+Now choose a random $h$ and compute $g = h^{(p-1)/q} \mod p$ (repeat until $g \neq 1$).
+Observations:
+\begin{itemize}
+\item
+If $g \neq 1$ then the $q$ powers of $g$ -- namely $G_q = \{ g, g^2, g^3, \dots, g^q \}$
+-- are all distinct mod $p$.
+\item
+$g^q = 1 \mod p$
+\item
+Multiplying any two elements of $G_q$ results in another element of $G_q$.
+\end{itemize}
+Together, this means that $G_q$ forms a \emph{group} under multiplication mod $p$.
+In particular, $G_q$ is a cyclic group with generator $g$ and prime order $q$ (number of group elements).
+
+\paragraph{Discrete Logarithm Problem DLP}
+Let $G_q$ be a cyclic group with generator $g$ and prime order $q$.
+Set $y = g^x \mod p$ where $x$ is uniformly random in $\{ 0, 1, \dots , q-1 \}$\footnote{Note that $g^0 = 1 = g^q$.}.
+The task is to find $x$.
+
+Algorithms to solve the DLP include the \emph{Function Field Sieve}
+(sub-exponential but super-polynomial in $\log p$) or
+the \emph{Pollard-$\rho$ Algorithm} (exponential in $\log q$).
 
 
-\subsection{Elgamal}
+\paragraph{Diffie-Hellman Key Exchange DHKE}
+The group and $(p, q, q)$ are public parameters.
+Alice picks a random $x$ and sends $X = g^x \mod p$ to Bob.
+Bob picks a random $y$ and sends $Y = g^y \mod p$ to Alice.
+Both compute a shared key $K = Y^x = X^y = g^{xy} \mod p$.
+
+This is the modern view of the dynamic DHKE, where the private values $x, y$ are considered \emph{ephemeral} and are generated freshly each time.
+In the original paper the key exchange was static -- participants would upload their key share to public, authentic directory.
+\\
+Furthermore in applications we don't usually use $K$ directly but use a KDF to derive keys from it.
+
+Note that this is NOT yet public-key encryption!
+
+\paragraph{MITM Attack on DHKE}
+An active MITM attacker can trivially run two DHKEs with both parties and relay messages,
+thus completely compromising the security of the ``modern'' interactive DHKE.
+\\
+As a countermeasure, we need to provide authenticity of the public key shares.
+This can be done either using MACs (requires a pre-shared symmetric key -- but DHKE still gives forward secrecy)
+or using signatures (requires a PKI).
+
+\paragraph{Computational Diffie-Hellman Problem CDHP}
+Given $(p, q, q)$ and $g^a \mod p$ and $g^b \mod p$ find $g^{ab} \mod p$.
+
+There is no proof that CDHP is equivalent to DLP (it could be easier), but is believed to be equivalent.
+
+\paragraph{Decisional Diffie-Hellman Problem DDHP}
+Given $(p, q, q)$ and u.a.r. values $a, b, c$ distinguish between
+$(g^a, g^b, g^{ab})$ (a \emph{DDH triplet}) and $(g^a, g^b, g^c)$.
+
+It is believed that the DDH assumption is stronger than the discrete logarithm assumption,
+because there exist cyclic groups where the DLP is hard but the DDHP is easy.
  
+
+\paragraph{ElGamal PKE scheme}
+Public group parameters $(p, q, g)$.
+\\
+$KGen$:
+Choose $x \leftarrow \$ \{ 0, 1, \dots, q-1 \}$ u.a.r.\footnote{$\leftarrow\$$ denotes drawing at random.}.
+Set $sk = x, pk = X = g^x \mod p$.
+\\
+$Enc$:
+Choose $r \leftarrow \$ \{ 0, 1, \dots, q-1 \}$ u.a.r. and set $Y = g^r \mod p$.
+Compute $Z = X^r \mod p$.
+Compute $C' = M \cdot Z \mod p$.
+Output ciphertext $C = (Y, C')$.
+\\
+$Dec$:
+Check that $Y \in G_q$ (else return $\bot$)\footnote{There are attacks if $Y \not \in G_q$.}.
+Compute $Z' = Y^x \mod p$.
+Output $M = C' \cdot (Z')^{-1} \mod p$.
+\\
+Correctness: left as an exercise.
+
+Intuition: combine a long-term and a one-time key share.
+Use the resulting DH value $Z$ as an encryption mask.
+
+IND-CPA secure under the DDH assumption. \\
+NOT IND-CCA secure (find an attack!).
+
+
+\paragraph{Diffie-Hellman Integrated Encryption Scheme DHIES} \mbox{} \\
+Motivation:
+Addresses ElGamal's problems: missing IND-CCA and having to encode messages as group elements.
+
+Definition:
+Public parameters $(p,q,g)$ and a hash function $H$ with a suitable output domain.
+\\
+$KGen$:
+Choose $x \leftarrow \$ \{ 0, 1, \dots, q-1 \}$ u.a.r..
+Set $sk = x, pk = X = g^x \mod p$.
+\\
+$Enc$:
+Choose $r \leftarrow \$ \{ 0, 1, \dots, q-1 \}$ u.a.r. and set $Y = g^r \mod p$.
+Compute $Z = X^r \mod p$.
+Set $K = H(Z, X, Y) = K_e\ ||\ K_m$.
+Compute $C' = EtM(M)$ using $K_e, K_m$ as encryption and MAC keys.
+Output $C=(Y, C')$.
+\\
+$Dec$:
+Check that $Y \in G_q$ (else return $\bot$).
+Compute $Z' = Y^x \mod p$.
+Recompute $K$ and decrypt.
+
+Intuition: effectively a KEM/DEM construction. Can plug in any AE scheme.
+
+IND-CCA secure in the Random Oracle Model.
+
