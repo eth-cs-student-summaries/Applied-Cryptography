@@ -240,14 +240,15 @@ In particular, $G_q$ is a cyclic group with generator $g$ and prime order $q$ (n
 \paragraph{Discrete Logarithm Problem DLP}
 Let $G_q$ be a cyclic group with generator $g$ and prime order $q$.
 Set $y = g^x \mod p$ where $x$ is uniformly random in $\{ 0, 1, \dots , q-1 \}$\footnote{Note that $g^0 = 1 = g^q$.}.
-The task is to find $x$.
+Given $(p,q,g)$ and $y$, find $x$.
 
 Algorithms to solve the DLP include the \emph{Function Field Sieve}
-(sub-exponential but super-polynomial in $\log p$) or
-the \emph{Pollard-$\rho$ Algorithm} (exponential in $\log q$).
+(sub-exponential but super-polynomial in $\log p$),
+the \emph{Pollard-$\rho$ Algorithm} (exponential in $\log q$),
+and \emph{baby-steps-giant-steps}.
 
 
-\paragraph{Diffie-Hellman Key Exchange DHKE}
+\paragraph{Diffie-Hellman Key Exchange DHKE} \hypertarget{dhke}
 The group and $(p, q, q)$ are public parameters.
 Alice picks a random $x$ and sends $X = g^x \mod p$ to Bob.
 Bob picks a random $y$ and sends $Y = g^y \mod p$ to Alice.
@@ -308,7 +309,7 @@ IND-CPA secure under the DDH assumption. \\
 NOT IND-CCA secure (find an attack!).
 
 
-\paragraph{Diffie-Hellman Integrated Encryption Scheme DHIES} \mbox{} \\
+\paragraph{Diffie-Hellman Integrated Encryption Scheme DHIES} \hypertarget{dhies} \mbox{} \\
 Motivation:
 Addresses ElGamal's problems: missing IND-CCA and having to encode messages as group elements.
 
@@ -383,7 +384,7 @@ The adversary wins if $(m^*, \sigma^*)$ is distinct from all queried pairs $(m, 
 We give the adversary more power: they can also win by producing a new signature on a previously queried message.
 Note that SUF-CMA and UF-CMA are equivalent for schemes with unique signatures.
 
-\paragraph{Digital Signature Algorithm DSA}
+\paragraph{Digital Signature Algorithm DSA} \hypertarget{dsa}
 DLP-based, public parameters $(p,q,g)$.
 
 $KGen$: Choose random $sk = x$ and compute $vk = X = g^x \mod p$.
@@ -473,3 +474,89 @@ If $H, G_1, G_2$ are random oracles then the UF-CMA security of RSA-PSS is
     \label{fig:rsa-pss}
 \end{figure}
 
+
+\subsection{Elliptic Curves}
+
+\paragraph{Motivation: key sizes}
+Cryptographic algorithms provide different security levels (measured as entropy in bits (?))
+depending on their design and the key size (RSA: modulus size, ECC: group size, DL: field+subgroup sizes).
+\\
+We can define DL-based algorithms over any cyclic group, including elliptic curves.
+Since there are no sub-exponential algorithms known in general,
+we get away with smaller key sizes than e.g. RSA, leading to performance benefits.
+
+\paragraph{Basics}
+An elliptic curve $E$ over a field $F$ is a set of pairs $(x, y) \in F \times F$.
+There are multiple ways of representing the curves, e.g. the Montgomery form,
+the Edwards form, or the short Weierstrass form using affine coordinates:
+$$ E = \{ (x,y) \in F \times F | y^2 = x^3 + ax + b \} \cup \{ O \} $$
+where $4a^3 + 27b^2 \neq 0$ over $F$ and $O$ is the special ``point at infinity''.
+
+\underline{Addition:}
+Two points can be added to obtain a third point on the curve.
+$O$ acts as an additive identity: $P+O=O+P=P$.
+Each point $P=(x,y)$ as an additive inverse $-P=(x,-y)$ such that $P + (-P) = O$ (and $O$ is its own inverse).
+\\
+Visually, when $P+Q=S$ then $R$ is the unique point where the straight line
+$\overline{PQ}$ intersects $E$ and $S$ is the projection of $R$ through the x-axis.
+For the detailed formula, see the slides.
+
+Addition turns the set of curve points into a group (with group operation ``+''
+and group order equal to the number of points on the curve).
+In practice, we work in a prime-order subgroup to maximise security against generic attacks.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.35]{images/ec-addition.png}
+    \caption{Elliptic Curve example}
+    \label{fig:ec-addition}
+\end{figure}
+
+\underline{Scalar multiplication} by $k$:
+We write $[k]P$ for the operation of adding $P$ to itself $k$ times.
+Consider the following analogue: $[k]P \text{ on } E \leftrightarrow g^x \mod p$.
+Note that in general $[k]P \neq (kx, ky)$!
+Scalar multiplication can be implemented using double-and-add.
+
+\underline{Point compression}:
+We can exploit the symmetry of the curve to avoid having to store two field elements per point:
+we can store only the $x$-coordinate and the ``sign'' of $y$.
+Instead of $2\cdot \log_2 p$ bits this only needs $1 + \log_2 p$ bits.
+
+\paragraph{Elliptic Curve Discrete Logarithm Problem ECDLP}
+Let $E$ be an elliptic curve over the field $F$ of prime order $p$.
+Let $P$ be a point of prime order $q$ on $E$.
+Set $Q = [x]P$ where $x$ is u.a.r. from $\{ 0, 1, ..., q-1 \}$.
+Given $E, P, Q$, find $x$.
+
+The best known algorithms for solving the ECDLP are the generic ones that work for any cyclic group and running in time $\mathcal{O}(q^{1/2})$.
+
+\paragraph{Curve selection}
+can be tricky and needs careful consideration (Which field $F$? Which curve $E$?
+Which base point $P$ of large prime order $q$?).
+It is safest to rely on standardised curves, e.g. NIST P-256 or Curve25519.
+
+\paragraph{Elliptic Curve Diffie-Hellman Ephemeral ECDHE}
+Similar to \hyperlink{dhke}{DHKE}.
+Alice chooses $x$ and sends $[x]P$, Bob chooses $y$ and sends $[y]P$,
+then both share the secret $[x][y]P$.
+
+\paragraph{Key pair generation}
+Choose $k$ u.a.r. from $\{ 0, 1, ..., q-1 \}$.
+Then $k$ is the private key and $Q=[k]P$ the public key.
+
+\paragraph{Elliptic Curve Integrated Encryption Scheme ECIES}
+Similar to \hyperlink{dhies}{DHIES}.
+See the slides for details.
+
+\paragraph{Elliptic Curve Digial Signature Algorithm ECDSA}
+Similar to \hyperlink{dsa}{DSA}.
+See the slides for details.
+Also suffers catastrophic failure under nonce reuse.
+\\
+Malleable: if $(r,s)$ is a valid signature on $m$ under $vk$ then so is $(r,-s)$.
+Thus cannot be SUF-CMA secure, but is plausibly UF-CMA secure.
+
+\paragraph{ECC Adoption}
+Originally slow takeoff due to mathematical complexity, lack of mature standards, unclear patent situation, general FUD.
+Introduced in the 1980s, only took of in the 2010s.
