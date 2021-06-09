@@ -335,3 +335,141 @@ Intuition: effectively a KEM/DEM construction. Can plug in any AE scheme.
 
 IND-CCA secure in the Random Oracle Model.
 
+
+\subsection{Signatures}
+
+\paragraph{Signature scheme}
+Goal: provide integrity. Public key analogue of MAC schemes.
+
+$KGen$: generates a random key pair $(sk, vk)$ = (signing key, verification key)
+\\
+$Sign$: takes an input a signing key $sk$ and a message $m$ and outputs the signature $\sigma$
+\\
+$Vfy$: takes as an input $(vk, m, \sigma)$ and outputs 0 or 1%
+\footnote{Some schemes perform ``message recovery'': they recover $m$ from $\sigma$ rather than receiving $m$ as input.}.
+\\
+Correctness:
+for all $(sk, pk)$ produced by $KGen$\footnote{Notice that this definition says nothing about maliciously generated key pairs.}
+and for all $m \in \setzeroone^*$ if $\sigma = Sign(sk, m)$ then $Vfy(vk, m, \sigma) = 1$.
+
+\paragraph{UF-CMA Security}
+We define \emph{(Existential) Unforgeability under Chosen Message Attack (E)UF-CMA}
+through the security game given in \autoref{fig:uf-cma}.
+We give the adversary access to $vk$ and a signing oracle.
+
+Informally: it should be hard for an adversary to produce a valid signature for a \underline{fresh} message $m^*$.
+\\
+Formally:
+The adversary wins if $m^*$ is distinct from all queried $m$ and $Vfy(vk, m^*, \sigma^*) = 1$.
+
+Implication: if $vk$ is bound to an identity, one cannot deny having signed $m$ (\emph{non-repudiation})\footnote{Can MACs offer this?}.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.35]{images/uf-cma.png}
+    \caption{UF-CMA game}
+    \label{fig:uf-cma}
+\end{figure}
+
+\paragraph{SUF-CMA Security}
+Strong unforgeability: same game as UF-CMA.
+
+Informally:
+it should be hard for an adversary to produce a \underline{fresh} valid signature for a \underline{some} message $m^*$.
+\\
+Formally:
+The adversary wins if $(m^*, \sigma^*)$ is distinct from all queried pairs $(m, \sigma)$ and $Vfy(vk, m^*, \sigma^*) = 1$.
+
+We give the adversary more power: they can also win by producing a new signature on a previously queried message.
+Note that SUF-CMA and UF-CMA are equivalent for schemes with unique signatures.
+
+\paragraph{Digital Signature Algorithm DSA}
+DLP-based, public parameters $(p,q,g)$.
+
+$KGen$: Choose random $sk = x$ and compute $vk = X = g^x \mod p$.
+\\
+$Sign$:
+\begin{enumerate}
+\item Generate a random $k \in \{1, ..., q-1\}$
+\item Compute $r = (g^k \mod p) \mod q$
+\item Compute $k^{-1} \mod q$ and hash $H(m)$
+\item Compute $s = k^{-1} \cdot (H(m) + x \cdot r) \mod q$
+\item Output $\sigma = (r, s)$
+\end{enumerate}
+%
+$Vfy$:
+\begin{enumerate}
+\item Check that $r, s \in \{1, ..., q-1\}$
+\item Compute $w = s^{-1} \mod q$
+\item Compute $u_1 = w \cdot H(m) \mod q$ and $u_2 = w \cdot r \mod q$
+\item Output 1 if $(g^{u_1} X^{u_2} \mod p) \mod q = r$ else 0
+\end{enumerate}
+%
+Correctness: left as an exercise.
+
+\paragraph{DSA Security}
+Informally:
+A hash collision results in a forgery. Usual DLP attack on $sk$.
+\\
+Formally:
+No good security proof for DSA is known.
+
+\emph{Catastrophic failure} under randomness failure:
+\\
+Assume the same $k$ is used to sign two different messages.
+This is detectable since then $r_1 = r_2$.
+This knowledge allows to rearrange the two formulas, recover $k$ and solve for $sk=x$!
+\\
+This issue is real: OpenSSL 2008, PlayStation 2010, Android 2013, any virtualized environment.
+\\
+We can \emph{hedge} against this by \emph{derandomising}:
+generate pseudo-random $k=F_K(vk||m$). Need to keep the PRF key $K$ together with $sk$.
+
+\paragraph{Naïve RSA signature}
+Sign using $\sigma = m^d \mod N$.
+Verify by $\sigma^e \overset{?}{=} m \mod N$.
+
+INSECURE.
+Trivial forgery: $\sigma_1 \sigma_2 \mod N$ is a signature on $m_1 m_2$.
+
+\paragraph{Full-Domain Hash (FDH) RSA signature}
+Sign using $\sigma = H(m)^d \mod N$.
+Verify by $\sigma^e \overset{?}{=} H(m) \mod N$.
+
+Hash function destroys algebraic (multiplicative) structure.
+Allows signing long messages.
+But: needs a hash function with the output domain $\{0, ..., N-1\}$.
+
+Theorem:
+If the RSA problem is hard and $H$ is a random oracle then FDH is UF-CMA secure.
+
+\paragraph{Hash-based RSA signature with padding}
+Sign using $\sigma = pad(H(m))^d \mod N$ for some padding function $pad$.
+Verify by $\sigma^e \overset{?}{=} pad(H(m)) \mod N$.
+
+Relaxes requirement of hash function having a matching output domain.
+Used e.g. in PKCS\#1 v1.5 with padding $00\ 01\ FF\ ...\ FF\ ||\ c\ ||\ H(m)$ for constant $c$.
+\\
+Bleichenbacher applies (if padding oracle in implementation).
+No known security proof for scheme with PKCS\#1 v1.5 padding.
+
+\paragraph{RSA Probabilistic Signature Scheme RSA-PSS}
+See \autoref{fig:rsa-pss} where $H, G_1, G_2$ are hash functions with suitable output lengths.
+\\
+Sign using $\sigma = (0 || s || t || u)^d \mod N$.
+Verify by $(b || s' || t' || u') = \sigma^e \mod N$,
+computing $r' = G_1(s') \xor t'$ and then re-encoding from the start and checking for a match.
+
+Standardised e.g. in PKCS\#1 v2.1.
+
+Theorem:
+If $H, G_1, G_2$ are random oracles then the UF-CMA security of RSA-PSS is
+\underline{tightly} related to the hardness of the RSA problem.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.3]{images/rsa-pss.png}
+    \caption{RSA-PSS}
+    \label{fig:rsa-pss}
+\end{figure}
+
