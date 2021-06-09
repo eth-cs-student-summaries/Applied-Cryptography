@@ -1,7 +1,9 @@
 
 \section{Advanced Cryptography}
 
-\subsection{Data at rest: Searchable Encryption}
+\subsection{Data at rest}
+
+\subsubsection{Searchable Encryption}
 
 \paragraph{Searchable Encryption}
 consists of three protocols:
@@ -111,8 +113,64 @@ Intuitively, the adversary should gain no extra information other than the leaka
 What can the adversary infer from the leakage?
 It turns out that given auxiliary information, one can e.g. perform query recovery.
 
-\subsection{Data in transit: Protocols}
+
+\subsection{Data in transit}
+
+\subsubsection{Transport Layer Security TLS}
+
+TODO
 
 
-\subsection{Data under computation: FHE}
+\subsubsection{Signal Messaging Protocol}
+
+TODO
+
+
+\subsubsection{Messaging Layer Security Protocol}
+
+TODO
+
+
+\subsection{Data under computation}
+
+\subsubsection{Fully Homomorphic Encryption FHE}
+
+\paragraph{Motivation}
+Allow data to be processed while remaining encrypted.
+Applications: Secure Outsourcing, Private Set Intersection (PSI), Private Machine Learning As A Service.
+
+\paragraph{Challenges}
+\begin{itemize}
+\item Crypto: Underlying math, parameter selection, security analysis.
+\item Computation Paradigm: No if/else, no loops, no jumps -- all would leak
+information about the encrypted data. Optimisations, approximations, SIMD batching.
+\end{itemize}
+
+\paragraph{(Ring-) Learning With Errors (R)LWE}
+The LWE problem is conjectured to be hard (even on quantum computers).
+Simplified idea: mask data with random noise.
+Need to carefully define encryption/decryption, addition and multiplication.
+For multiplication, we need \emph{relinearization} to make the maths work.
+
+Problem: noise increases with each operation and will eventually grow too large for decryption to succeed.
+Solution: use \emph{bootstrapping} to (homomorphically) reduce the noise again.
+Effectively, bootstrapping produces an encryption of the same encrypted message,
+but at a lower noise level.\footnote{This is one of the practical breakthroughs of Gentry '09.}
+But: bootstrapping is complex and slow (order of seconds to minutes), so we try to avoid it in practice.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.4]{images/fhe-rlwe.png}
+    \caption{FHE: RLWE operations}
+    \label{fig:fhe-rlwe}
+\end{figure}
+
+\paragraph{Parameter selection}
+Careful trade-off between efficiency, security and correctness.
+Security based on current knowledge on how hard the LWE problem is.
+
+\paragraph{Tool support}
+``Libraries'' implement the underlying FHE schemes, addressing the crypto side.
+``Compilers'' help with writing higher-level code, addressing the computation paradigm concerns.
+E.g. SEAL (C++), EVA (Python), nGraph-HE (Tensorflow), SEALion (Keras).
 

@@ -560,3 +560,26 @@ Thus cannot be SUF-CMA secure, but is plausibly UF-CMA secure.
 \paragraph{ECC Adoption}
 Originally slow takeoff due to mathematical complexity, lack of mature standards, unclear patent situation, general FUD.
 Introduced in the 1980s, only took of in the 2010s.
+
+
+\subsection{Key Management}
+
+\paragraph{Motivation}
+Cryptography shifts the problem of security data to the problem of managing keys.
+
+\paragraph{Aspects}
+key generation, key storage, key distribution, key usage + scope,
+key replacement/rollover, key backup + recovery, key revocation + destruction.
+
+\paragraph{Key lifecycle}
+Pre-operational $\rightarrow$ operational $\rightarrow$ post-operational%
+\footnote{Don't use the key any more but keep it around to e.g. decrypt past communications again.}
+$\rightarrow$ destroyed
+
+\paragraph{Principle of Key Separation}
+A cryptographic key should only be used for its intended purpose.
+
+Any given key should not be used in more than one cryptographic algorithm.
+Reasoning: the interaction between algorithms may lead to unexpected weaknesses.
+E.g.: CBC mode encryption and CBC-MAC, or RSA encryption and signatures.
+
