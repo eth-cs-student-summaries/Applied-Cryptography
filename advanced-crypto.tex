@@ -118,7 +118,85 @@ It turns out that given auxiliary information, one can e.g. perform query recove
 
 \subsubsection{Transport Layer Security TLS}
 
-TODO
+\paragraph{Goal} ``Secure channel between two peers'' --
+confidentiality, authentication, integrity in the face of a network adversary
+and only requiring a reliable in-order transport mechanism.
+
+\paragraph{Architecture}
+\begin{itemize}
+\item Handshake protocol:
+Cipher suite negotiation, peer authentication, key material establishment
+\item Record protocol:
+``normal'' data transfer
+\item Many other features: session resumption, renegotiation, extensions, ...
+\end{itemize}
+
+For the format of the handshake protocol and a TLS record,
+see \autoref{fig:tls-handshake} and \autoref{fig:tls-record}.
+These blueprints are instantiated using the negotiated cipher suite:
+for example RSA for the key exchange and authentication with AES128-CBC as a cipher and SHA1 as a MAC.
+
+\emph{Ad handshake}:
+the peers create/derive a pre-master secret during the handshake.
+Authentication is done via a signature over the entire handshake transcript (\texttt{ServerCertificateVerify}).
+MITM protection via MAC over transcript (\texttt{ServerFinished}).
+This is an example of \emph{Sign-and-Mac}.
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[scale=0.3]{images/tls-cipher-suite.png}
+    \caption{TLS Cipher Suite Format ($\leq$ TLS 1.2)}
+    \label{fig:tls-cipher-suite}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[width=0.6\textwidth]{images/tls-handshake-12.png}\includegraphics[width=0.4\textwidth]{images/tls-handshake-13.png}
+    \caption{TLS Handshake Protocol (simplified, left: $\leq$ TLS 1.2 right: TLS 1.3)}
+    \label{fig:tls-handshake}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+	\includegraphics[width=0.5\textwidth]{images/tls-record-12.png}\includegraphics[width=0.5\textwidth]{images/tls-record-13.png}
+    \caption{TLS Record Format (simplified, left: $\leq$ TLS 1.2 right: TLS 1.3)}
+    \label{fig:tls-record}
+\end{figure}
+
+\paragraph{Security Issues}
+Various, due to protocol complexity.
+Protocol issues, padding oracles, implementation bugs, downgrade attacks.
+
+\paragraph{TLS 1.3 Goals}
+\begin{itemize}
+\item \emph{Clean up:}
+remove legacy crypto, unused/broken features, static RSA/DH\footnote{They don't provide forward secrecy.}
+\item \emph{Improved latency:}
+TLS 1.2 handshake takes 2 round trips, ``wasting'' one to learn server capabilities.
+Instead, run full hand-shake in 1 round trip (possible due to feature reduction).
+0-RTT handshake using a shared resumption secret PSK
+-- at the sacrifice of FS and danger of replay attack.
+\item \emph{Improved privacy:}
+Encrypt all most all handshake messages.
+Send a \texttt{[Client|Server]KeyShare} with the \texttt{[Client|Server]Hello}.
+Then encrypt all subsequent messages with the \emph{handshake traffic key} $tk_{hs}$.
+\item \emph{Continuity:}
+Interoperability (make \texttt{ClientHello} look like in TLS 1.2)
+\item \emph{Security assurance:}
+Formally analyse the protocol before it is deployed (rather than after).
+This is done in various ways: computational model, tool-based, verified implementations.
+\end{itemize}
+
+\paragraph{Key Separation}
+Detailed key schedule for deriving separate keys everywhere.
+Advantage: if a \emph{key} is compromised, all other keys still remain secure
+(as long as the \emph{secrets} from which they were derived are private).
+\\
+In TLS 1.3: use $HKDF.Extract(salt, keymaterial)$ to extract entropy (e.g. from PSK)
+into a random key which can be expanded into longer random output using $HKDF.Expand(key, context, length)$.
+\\
+E.g. master secret MS, resumption master secret RMS, exporter master secret EMS,
+application data traffic key $tk_{app}$, ...
 
 
 \subsubsection{Signal Messaging Protocol}
