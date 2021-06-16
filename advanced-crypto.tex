@@ -174,8 +174,12 @@ remove legacy crypto, unused/broken features, static RSA/DH\footnote{They don't 
 \item \emph{Improved latency:}
 TLS 1.2 handshake takes 2 round trips, ``wasting'' one to learn server capabilities.
 Instead, run full hand-shake in 1 round trip (possible due to feature reduction).
+
 0-RTT handshake using a shared resumption secret PSK
--- at the sacrifice of FS and danger of replay attack.
+-- at the sacrifice of forward secrecy for EarlyData and danger of replay attacks.
+Protections via using each PSK only once or requiring a recent \texttt{ClientHello}
+time can be subject to desynchronisation or state loss attacks.
+Ideally, 0-RTT should only be used for idempotent requests, and via a separate API.
 \item \emph{Improved privacy:}
 Encrypt all most all handshake messages.
 Send a \texttt{[Client|Server]KeyShare} with the \texttt{[Client|Server]Hello}.
